@@ -1,0 +1,12 @@
+# project files
+.Rproj.user
+.Rhistory
+.Rdata
+.Ruserdata
+
+# transcript files
+raw_docx/
+clean_docx/
+
+# files in progress
+in_progress/

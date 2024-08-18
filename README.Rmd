@@ -1,0 +1,28 @@
+---
+title: 'Transcript Processing'
+author: "Chris Donovan\n"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+    github_document:
+        toc: true
+        toc_depth: 1
+        html_preview: true
+    html_document:
+        toc: true
+        toc_depth: 1
+        number_sections: true
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+
+This project houses a function to clean transcripts from MS Teams by consolidating lines from the same speaker, removing blank lines, and removing short interjections from speaker B in between lines from speaker A. Use case is for private transcripts that cannot be shared, but at some point I will add examples to work with here.
+
+Work in progress.
+
