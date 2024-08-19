@@ -53,10 +53,9 @@ clean_transcript <- function(raw_docx_file,
     stop('** More than one colon has been detected in a single line. **',
          call. = FALSE)
   }
-  
+
   # Pull out first few lines of front matter and save for later
   front_matter <- dat$text[c(1:3)]
-  
   
   
   # Cleaning -----
@@ -68,7 +67,6 @@ clean_transcript <- function(raw_docx_file,
   
     # Fix first line (still has series of numbers for avatar)
     mutate(text = str_remove_all(text, "[^a-zA-Z\\s:\\.]"))
-  
   
   # Smush -----
   
@@ -98,14 +96,19 @@ clean_transcript <- function(raw_docx_file,
   # Then remove any lines with less than certain length IF between lines from 
   # the same speaker
   i <- 2
-  while(i <= nrow(dat)) {
-    if (str_length(str_split_i(dat[['text']][i], ': ', 2)) <= min_str_length &&
-        str_split_i(dat[['text']][i - 1], ':', 1) == str_split_i(dat[['text']][i + 1], ':', 1)) {
-      dat <- dat[-i, ]
-    } else {
-      i <- i + 1
+  tryCatch({
+    while(i < nrow(dat)) {
+      if (str_length(str_split_i(dat[['text']][i], ': ', 2)) <= min_str_length &&
+          str_split_i(dat[['text']][i - 1], ':', 1) == str_split_i(dat[['text']][i + 1], ':', 1)) {
+        dat <- dat[-i, ]
+      } else {
+        i <- i + 1
+      }
     }
-  }
+  },
+  error = function(e) {
+    message(cat('Error in line ', i, ' (After consolidating lines): ', dat$text[i], sep = ''))
+  })
   
   # Now we have to smush again
   i <- 2

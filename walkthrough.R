@@ -25,8 +25,8 @@ source('scripts/clean_transcript.R')
 
 # Now use it to clean the transcript. There are only two required arguments.
 clean_transcript(
-  raw_docx_file = 'docx_files/raw_transcript.docx',
-  clean_docx_file = 'docx_files/cleaned_transcript.docx'
+  raw_docx_file = 'raw_docx/14. 1 - John Ibitoye Transcript.docx',
+  clean_docx_file = 'clean_docx/cleaned_transcript.docx'
 )
 
 #' But if you want more control over the format, you can specify a few things.
@@ -52,7 +52,7 @@ clean_transcript(
 #' just explores the docx file in R. 
 
 # First we load our file with officer
-raw <- read_docx('docx_files/raw_transcript.docx')
+raw <- read_docx('raw_docx/raw_transcript.docx')
 
 # Then we get a summary object which is what we will work with
 dat <- docx_summary(raw)
