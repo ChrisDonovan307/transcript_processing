@@ -7,6 +7,9 @@
 # transcript files
 raw_docx/
 clean_docx/
+test_docx/
+raw_teams_docx/
+raw_zoom_docx/
 
 # files in progress
 progress/

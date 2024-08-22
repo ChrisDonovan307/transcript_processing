@@ -1,159 +1,115 @@
-#' clean_transcript
-#' 2024-08-14
+#' Clean Transcript
+#' 2024-08-19
 
-#' Function that will do all the transcript processing at once.
+#' This will be the front-facing function to interact with. It will call the
+#' other functions based on format and whether it is by file or by folder.
 
+source('scripts/clean_teams_transcript.R')
+source('scripts/clean_zoom_transcript.R')
 
-# Packages ----------------------------------------------------------------
-
-
-pacman::p_load(
-  dplyr,
-  officer,
-  purrr,
-  stringr
-)
-
-
-
-# Function ----------------------------------------------------------------
-
-
-clean_transcript <- function(raw_docx_file,
-                             clean_docx_file,
+clean_transcript <- function(format = c('Zoom', 'Teams'),
+                             raw_file = NULL,
+                             raw_folder = NULL,
+                             clean_path,
                              min_str_length = 6,
                              font_family = 'Aptos',
                              font_size = 12,
                              line_spacing = 1) {
   
-  # Front Matter -----
-  
-  # Check inputs
+  # Assertions --------------------------------------------------------------
   stopifnot(
-    '** The raw_docx_file argument should be a character string **' = 
-      is.character(raw_docx_file),
-    '** The clean_docx_file argument should be a character string **' = 
-      is.character(clean_docx_file),
-    '** The min_str_length argument should be an integer **' =
-      is.numeric(min_str_length),
-    '** The font_family argument should be a character string ("Aptos" or "Times") **' =
-      is.character(font_family),
-    '** The font_size argument should be an integer **' = 
-      is.numeric(font_size),
-    '** The line_spacing argument should be an integer **' = 
-      is.numeric(line_spacing)
+    '** The format argument should either be "Zoom" or "Teams" **' = 
+      format %in% c('Zoom', 'Teams'),
+    '** The raw_file argument should be a character string **' =
+      is.character(raw_file) | is.null(raw_file),
+    '** The raw_folder argument should be a character string **' =
+      is.character(raw_folder) | is.null(raw_folder),
+    '** The path argument should be a character string **' =
+      is.character(clean_path) | is.null(clean_path)
+  )
+  
+  if ((is.null(raw_file) && is.null(raw_folder)) | 
+      (!is.null(raw_file) && !is.null(raw_folder))) {
+    stop(
+      '** Please specify EITHER a raw_file OR a raw_folder of files to clean **',
+      call. = FALSE
     )
-  
-  # Read in file with officer and get a summary object
-  dat <- read_docx(raw_docx_file) %>% 
-    docx_summary()
-  
-  # Check that no text line has more than one colon
-  if (any(map_lgl(dat$text, ~ str_count(.x, ':'))) > 1) {
-    stop('** More than one colon has been detected in a single line. **',
-         call. = FALSE)
   }
+  
 
-  # Pull out first few lines of front matter and save for later
-  front_matter <- dat$text[c(1:3)]
   
+  # By Folder ---------------------------------------------------------------
   
-  # Cleaning -----
-  
-  dat <- dat %>%
-
-    # Remove avatars (style_name == NA)
-    filter(!is.na(style_name)) %>% 
-  
-    # Fix first line (still has series of numbers for avatar)
-    mutate(text = str_remove_all(text, "[^a-zA-Z\\s:\\.]"))
-  
-  # Smush -----
-  
-  # First consolidate all rows missing a name
-  i <- 2
-  while (i <= nrow(dat)) {
-    if (str_detect(dat[['text']][i], ':', negate = TRUE)) {
-      dat[['text']][i - 1] <- paste(dat[['text']][i - 1], dat[['text']][i])
-      dat <- dat[-i, ]
-    } else {
-      i <- i + 1
-    }
+  # Make sure path to clean folder ends with slash
+  if (str_detect(clean_path, '/$', negate = TRUE)) {
+    clean_folder <- paste0(clean_path, '/')
+  } else {
+    clean_folder <- clean_path
   }
   
-  # Now consolidate all consecutive rows with the same name
-  i <- 2
-  while (i <= nrow(dat)) {
-    if (str_split_i(dat[['text']][i], ':', 1) == str_split_i(dat[['text']][i - 1], ':', 1)) {
-      dat[['text']][i] <- str_split_i(dat[['text']][i], ': ', 2)
-      dat[['text']][i - 1] <- paste(dat[['text']][i - 1], dat[['text']][i])
-      dat <- dat[-i, ]
-    } else {
-      i <- i + 1
+  if (!is.null(raw_folder)) {
+    
+    # Get file paths and names
+    file_paths <- list.files(raw_folder,
+                             pattern = '*.docx',
+                             full.names = TRUE)
+    file_names <- list.files(raw_folder,
+                             pattern = '*.docx',
+                             full.names = FALSE)
+    
+    # Check format and clean folders
+    if (format == 'Zoom') {
+      ## Clean Zoom Folder -----
+      walk2(file_paths, file_names, \(file_path, file_name) {
+        clean_zoom_transcript(
+          raw_docx_file = file_path,
+          clean_docx_file = paste0(clean_folder, 'clean_', file_name),
+          min_str_length = min_str_length,
+          font_family = font_family,
+          font_size = font_size,
+          line_spacing = line_spacing
+        )
+      })
+    
+    } else if (format == 'Teams') {
+      ## Clean Teams Folder -----
+      walk2(file_paths, file_names, \(file_path, file_name) {
+        clean_teams_transcript(
+          raw_docx_file = file_path,
+          clean_docx_file = paste0(clean_folder, 'clean_', file_name),
+          min_str_length = min_str_length,
+          font_family = font_family,
+          font_size = font_size,
+          line_spacing = line_spacing
+        )
+      })
     }
-  }
+  } 
   
-  # Then remove any lines with less than certain length IF between lines from 
-  # the same speaker
-  i <- 2
-  tryCatch({
-    while(i < nrow(dat)) {
-      if (str_length(str_split_i(dat[['text']][i], ': ', 2)) <= min_str_length &&
-          str_split_i(dat[['text']][i - 1], ':', 1) == str_split_i(dat[['text']][i + 1], ':', 1)) {
-        dat <- dat[-i, ]
-      } else {
-        i <- i + 1
+  # By File -----------------------------------------------------------------
+  if (!is.null(raw_file)) {
+    
+    if (format == 'Zoom') {
+      ## Zoom File -----
+      clean_zoom_transcript(
+        raw_docx_file = raw_file,
+        clean_docx_file = clean_path,
+        min_str_length = min_str_length,
+        font_family = font_family,
+        font_size = font_size,
+        line_spacing = line_spacing
+      )
+    } else if (format == 'Teams') {
+        ## Teams File -----
+        clean_teams_transcript(
+          raw_docx_file = raw_file,
+          clean_docx_file = clean_path,
+          min_str_length = min_str_length,
+          font_family = font_family,
+          font_size = font_size,
+          line_spacing = line_spacing
+        )
       }
     }
-  },
-  error = function(e) {
-    message(cat('Error in line ', i, ' (After consolidating lines): ', dat$text[i], sep = ''))
-  })
-  
-  # Now we have to smush again
-  i <- 2
-  while (i <= nrow(dat)) {
-    if (str_split_i(dat[['text']][i], ':', 1) == str_split_i(dat[['text']][i - 1], ':', 1)) {
-      dat[['text']][i] <- str_split_i(dat[['text']][i], ': ', 2)
-      dat[['text']][i - 1] <- paste(dat[['text']][i - 1], dat[['text']][i])
-      dat <- dat[-i, ]
-    } else {
-      i <- i + 1
-    }
-  }
-  
-  # Write to docx -----
-  
-  # Set fonts to be used later - one bold, one normal
-  bold_font <- fp_text(
-    font.size = font_size,
-    font.family = font_family,
-    bold = TRUE
-  )
-  
-  normal_font <- fp_text(
-    font.size = font_size,
-    font.family = font_family,
-  )
-  
-  # Start a new docx file
-  doc <- read_docx()
+} 
 
-  # Write each name and line to docx file with formatting
-  for (line in dat$text) {
-    split <- str_split_1(line, ': ')
-    paragraph <- fpar(
-      ftext(split[[1]], prop = bold_font),
-      ftext(': ', prop = bold_font),
-      ftext(split[[2]], prop = normal_font),
-      fp_p = fp_par(line_spacing = line_spacing)
-    )
-    doc <- doc %>%
-      body_add_fpar(paragraph) %>%
-      body_add_par('')
-  }
-  
-  # Save docx file to specified path
-  print(doc, target = clean_docx_file)
-}
-  
