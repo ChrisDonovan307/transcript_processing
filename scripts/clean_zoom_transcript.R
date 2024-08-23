@@ -55,14 +55,21 @@ clean_zoom_transcript <- function(raw_docx_file,
   checks <- map(dat$text, ~ str_count(.x, ':'))
   if (any(checks > 1)) {
     warning(
-      '** More than one colon in paragraph(s) ',
+      '** More than one colon in',
+      {{ raw_docx_file }},
+      ' paragraph(s) ',
       paste(which(checks > 1), collapse = ', '),
       '. Check for errors! **',
       call. = FALSE
     )
-    dat$text[which(checks > 1)] %>% 
-      head() %>% 
-      print()
+    cat(
+      '\nProblem paragraphs in ',
+      {{ raw_docx_file }},
+      ':',
+      paste0('\n', dat$text[which(checks > 1)] %>% str_sub(end = 80)),
+      '\n\n',
+      sep = ''
+    )
   } 
 
   # Pull out first few lines of front matter and save for later
@@ -71,15 +78,22 @@ clean_zoom_transcript <- function(raw_docx_file,
   
   # Cleaning -----
   
+  # Replace first colon with filler
+  dat$text <- str_replace(dat$text, ':', 'first_colon')
+  dat$name <- str_split_i(dat$text, 'first_colon', 1)
+  dat$text <- str_split_i(dat$text, 'first_colon ', 2)
+
   dat <- dat %>%
 
     # Remove avatars (style_name == NA)
-    filter(!is.na(style_name)) %>% 
+    filter(!is.na(style_name))
   
     # Fix first line (still has series of numbers for avatar)
-    mutate(text = str_remove_all(text, "[^a-zA-Z\\s:\\.]"))
+    # mutate(text = str_remove_all(text, "[^a-zA-Z\\s:\\.]"))
   
   # Smush -----
+  
+  browser() # [] here, but this isn't quite right. Some names are fuckes up
   
   # First consolidate all rows missing a name
   i <- 2

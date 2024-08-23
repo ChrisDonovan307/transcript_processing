@@ -50,18 +50,25 @@ clean_teams_transcript <- function(raw_docx_file,
     docx_summary()
   
   # Check that no text line has more than one colon
-  checks <- map(dat$text, ~ str_count(.x, ':'))
-  if (any(checks > 1)) {
-    warning(
-      '** More than one colon in paragraph(s) ',
-      paste(which(checks > 1), collapse = ', '),
-      '. Check for errors! **',
-      call. = FALSE
-    )
-    dat$text[which(checks > 1)] %>% 
-      head() %>% 
-      print()
-  } 
+  # checks <- map(dat$text, ~ str_count(.x, ':'))
+  # if (any(checks > 1)) {
+  #   warning(
+  #     '** More than one colon in',
+  #     {{ raw_docx_file }},
+  #     ' paragraph(s) ',
+  #     paste(which(checks > 1), collapse = ', '),
+  #     '. Check for errors! **',
+  #     call. = FALSE
+  #   )
+  #   cat(
+  #     '\nProblem paragraphs in ',
+  #     {{ raw_docx_file }},
+  #     ':',
+  #     paste0('\n', dat$text[which(checks > 1)] %>% str_sub(end = 80)),
+  #     '\n\n',
+  #     sep = ''
+  #   )
+  # } 
 
   # Pull out first few lines of front matter and save for later
   front_matter <- dat$text[1:2]
@@ -75,16 +82,30 @@ clean_teams_transcript <- function(raw_docx_file,
   # Remove NA rows
   corpus <- corpus %>% 
     filter(text != '')
-
-    # Split text into columns for name, time, and text
+  
+  # Split text into columns for name, time, and text
+  preliminary <- str_split(corpus$text, '\\s{3}')
+  clean_name <- map_chr(preliminary, ~ .x[[1]][1])
+  
+  # Find first colon
+  first_colon_pos <- map(preliminary, ~ str_locate(.x[[2]], ':')[1])
+  
+  # Replace colon with filler 
+  preliminary_replaced <- map(preliminary, 
+                              ~ str_replace(.x[[2]], ':', 'first_colon'))
+  
+  # Now split on filler, and pull out time (clean it) and text
+  secondary <- str_split(preliminary_replaced, '(?<=first_colon[0-9]{2})')
+  clean_time <- map_chr(secondary, ~ str_replace(.x[[1]], 'first_colon', ':'))
+  clean_text <- map_chr(secondary, ~ .x[[2]])
+  
+  # Put them into corpus DF
   corpus <- corpus %>%
     mutate(
-      split_text = str_split(text, "(?<=:[0-9]{2})|\\s{3}"),
-      name = map_chr(split_text, ~ .x[[1]]),
-      time = map_chr(split_text, ~ .x[[2]]),
-      text = map_chr(split_text, ~ .x[[3]])
-    ) %>% 
-    select(-split_text)
+      name = clean_name,
+      time = clean_time, 
+      text = clean_text
+    )
   
   # Remove NA rows and remove numbers from name
   corpus <- corpus %>% 

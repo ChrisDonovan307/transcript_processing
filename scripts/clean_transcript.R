@@ -61,26 +61,46 @@ clean_transcript <- function(format = c('Zoom', 'Teams'),
     if (format == 'Zoom') {
       ## Clean Zoom Folder -----
       walk2(file_paths, file_names, \(file_path, file_name) {
-        clean_zoom_transcript(
-          raw_docx_file = file_path,
-          clean_docx_file = paste0(clean_folder, 'clean_', file_name),
-          min_str_length = min_str_length,
-          font_family = font_family,
-          font_size = font_size,
-          line_spacing = line_spacing
-        )
+        tryCatch({
+          clean_zoom_transcript(
+            raw_docx_file = file_path,
+            clean_docx_file = paste0(clean_folder, 'clean_', file_name),
+            min_str_length = min_str_length,
+            font_family = font_family,
+            font_size = font_size,
+            line_spacing = line_spacing
+          )
+        },
+        error = function(e) {
+          message(
+            '\n** Could not process ',
+            {{ file_path }},
+            ' **'
+          )
+        })
       })
     
     } else if (format == 'Teams') {
       ## Clean Teams Folder -----
       walk2(file_paths, file_names, \(file_path, file_name) {
-        clean_teams_transcript(
-          raw_docx_file = file_path,
-          clean_docx_file = paste0(clean_folder, 'clean_', file_name),
-          min_str_length = min_str_length,
-          font_family = font_family,
-          font_size = font_size,
-          line_spacing = line_spacing
+        tryCatch({
+          clean_teams_transcript(
+            raw_docx_file = file_path,
+            clean_docx_file = paste0(clean_folder, 'clean_', file_name),
+            min_str_length = min_str_length,
+            font_family = font_family,
+            font_size = font_size,
+            line_spacing = line_spacing
+          )
+        },
+        error = function(e) {
+          message(
+            '\n** Could not process ',
+            {{ file_path }},
+            ' **'
+          )
+        }
+        
         )
       })
     }
@@ -100,8 +120,8 @@ clean_transcript <- function(format = c('Zoom', 'Teams'),
         line_spacing = line_spacing
       )
     } else if (format == 'Teams') {
-        ## Teams File -----
-        clean_teams_transcript(
+      ## Teams File -----
+      clean_teams_transcript(
           raw_docx_file = raw_file,
           clean_docx_file = clean_path,
           min_str_length = min_str_length,
